@@ -5,6 +5,12 @@ using UnityEngine.UI;
 
 public class GameController : MonoBehaviour
 {
+    public enum TurnState
+    {
+        PLAYERTURN,
+        BOTTURN
+    };
+    public TurnState CurrentTurnState; 
     [SerializeField]
     private List<GameObject> m_Positions = new List<GameObject>();
     private List<GameObject> m_BotPositions = new List<GameObject>();
@@ -35,16 +41,35 @@ public class GameController : MonoBehaviour
     private int m_XRightDiagonalCounter;
     private int m_OLeftDiagonalCounter;
     private int m_ORightDiagonalCounter;
+    private int ROUNDSCORE = 1;
     private bool m_PlayerTurn;
     public bool IsGameOver;
-    [SerializeField]
-    private Text m_BotTimer;
-    [SerializeField]
-    private Text m_PlayerTimer;
-    private int m_Timer;
-
-
+    private const string PLAYERTURN = "Your Turn";
+    private const string BOTTURN = "BOT Turn";
     int m_GameCurrentSignStatus;
+    [SerializeField]
+    private Text m_PlayerCurrentScoreText;
+    [SerializeField]
+    private Text m_BotCurrentScoreText;
+    [SerializeField]
+    private Text m_PlayerTotalScoreText;
+    [SerializeField]
+    private Text m_BotTotalScoreText;
+    private int m_PlayerCurrentScore;
+    private int m_BotCurrentScore;
+    private int m_PlayerTotalScore;
+    private int m_BotTotalScore;
+    [SerializeField]
+    private Text m_TurnStatus;
+    [SerializeField]
+    private Text m_WinStatus;
+    [SerializeField]
+    private Button m_NextGame;
+    [SerializeField]
+    private GameObject m_Panel;
+    [SerializeField]
+    private Text m_PlayerName;
+
     // Start is called before the first frame update
 
     void OnEnable()
@@ -60,7 +85,8 @@ public class GameController : MonoBehaviour
 
     void Start()
     {
-        m_Timer = 5;
+        m_PlayerName.text = UiManager.s_Name;
+        CurrentTurnState = TurnState.PLAYERTURN;
         IsGameOver = false;
         m_PlayerTurn = true;
         m_GameCurrentSignStatus = 0;
@@ -69,14 +95,14 @@ public class GameController : MonoBehaviour
 
     void MouseUp(Vector3 mousePosition)
     {
-        if(m_PlayerTurn && !IsGameOver)
+        if(CurrentTurnState == TurnState.PLAYERTURN && !IsGameOver)
         {
             RaycastHit2D hit = GetCurrentPosition(mousePosition);
             if (hit.collider != null)
             {
                 if (!hit.collider.gameObject.GetComponent<Position>().IsFilled)
                 {
-                    hit.collider.gameObject.GetComponent<Position>().PositionStatus = m_GameCurrentSignStatus;
+                    hit.collider.gameObject.GetComponent<Position>().PositionStatus = (int)CurrentTurnState;
                     hit.collider.gameObject.GetComponent<Position>().SetPositionTexture();
                     hit.collider.gameObject.GetComponent<Position>().IsFilled = true;
                     SetPositionsCounters(hit.collider.gameObject);
@@ -88,17 +114,19 @@ public class GameController : MonoBehaviour
         }
     }
 
-    void ToogleCurrentStatus()
+    public void ToogleTurn()
     {
-        if (m_GameCurrentSignStatus == 0)
+        if (CurrentTurnState == TurnState.PLAYERTURN)
         {
-            m_GameCurrentSignStatus = 1;
+            CurrentTurnState = TurnState.BOTTURN;
+            m_TurnStatus.text = BOTTURN;
         }
-        else
+        else if(CurrentTurnState == TurnState.BOTTURN)
         {
-            m_GameCurrentSignStatus = 0;
+            CurrentTurnState = TurnState.PLAYERTURN;
+            m_TurnStatus.text = PLAYERTURN;
         }
-
+        m_GameCurrentSignStatus = (int)CurrentTurnState;
     }
 
     void SetWhiteTexture()
@@ -257,12 +285,24 @@ public class GameController : MonoBehaviour
     {
         if(m_OFirstColumnCounter >= 3 || m_OFirstRowCounter >= 3 || m_OZeroColumnCounter >= 3 || m_OZeroRowCounter >= 3|| m_OSecondColumnCounter >= 3 || m_OSecondRowCounter >= 3 || m_ORightDiagonalCounter >= 3 || m_OLeftDiagonalCounter >= 3)
         {
-            Debug.Log("Sahil wins");
+            m_WinStatus.gameObject.SetActive(true);
+            m_NextGame.gameObject.SetActive(true);
+            m_WinStatus.text = m_PlayerName.text+" Wins";
+            m_PlayerCurrentScore = ROUNDSCORE;
+            m_PlayerTotalScore += m_PlayerCurrentScore;
+            m_PlayerCurrentScoreText.text = m_PlayerCurrentScore.ToString();
+            m_PlayerTotalScoreText.text = m_PlayerName.text+":"+m_PlayerTotalScore.ToString();
             IsGameOver = true;
         }
         else if(m_XFirstColumnCounter >= 3 || m_XFirstRowCounter >= 3 || m_XZeroColumnCounter >= 3 || m_XZeroRowCounter >= 3 || m_XSecondColumnCounter >= 3 || m_XSecondRowCounter >= 3 || m_XRightDiagonalCounter >= 3 || m_XLeftDiagonalCounter >= 3)
         {
-            Debug.Log("Bot wins");
+            m_WinStatus.gameObject.SetActive(true);
+            m_NextGame.gameObject.SetActive(true);
+            m_WinStatus.text = "Bot Wins";
+            m_BotCurrentScore = ROUNDSCORE;
+            m_BotTotalScore += m_BotCurrentScore;
+            m_BotCurrentScoreText.text = m_BotCurrentScore.ToString();
+            m_BotTotalScoreText.text =  "Bot:"+m_BotTotalScore.ToString();
             IsGameOver = true;
         }
     }
@@ -302,30 +342,92 @@ public class GameController : MonoBehaviour
 
     IEnumerator BotTurn()
     {
-        if(!m_PlayerTurn && !IsGameOver)
+        m_BotPositions.Clear();
+        if (CurrentTurnState == TurnState.BOTTURN && !IsGameOver)
         {
             CheckBotsRemainingPosition();
-            if(m_BotPositions.Count != 0)
+            if (m_BotPositions.Count != 0)
             {
                 int randomNumber = (int)Random.Range(0, m_BotPositions.Count);
                 yield return new WaitForSeconds(Random.Range(0f, 4f));
                 Debug.Log(" Count" + m_BotPositions.Count);
-                m_BotPositions[randomNumber].GetComponent<Position>().PositionStatus = m_GameCurrentSignStatus;
+                m_BotPositions[randomNumber].GetComponent<Position>().PositionStatus = (int)CurrentTurnState;
                 m_BotPositions[randomNumber].GetComponent<Position>().SetPositionTexture();
                 m_BotPositions[randomNumber].GetComponent<Position>().IsFilled = true;
                 SetPositionsCounters(m_BotPositions[randomNumber]);
-                m_BotPositions.Clear();
                 CheckWinCondition();
                 ToogleTurn();
             }
         }
     }
-
-    void ToogleTurn()
+    void ResetPositionStatus()
     {
-        m_PlayerTurn = !m_PlayerTurn;
-        ToogleCurrentStatus();
+        for(int index = 0; index < m_Positions.Count; index++)
+        {
+                m_Positions[index].GetComponent<Position>().PositionStatus = 2;
+        }
     }
+
+    void ResetFilledProperty()
+    {
+        for (int index = 0; index < m_Positions.Count; index++)
+        {
+            m_Positions[index].GetComponent<Position>().IsFilled = false;
+        }
+    }
+
+    void ResetCounters()
+    {
+        m_OZeroRowCounter = 0;
+        m_OZeroColumnCounter = 0;
+        m_OFirstRowCounter = 0;
+        m_OFirstColumnCounter = 0;
+        m_OSecondRowCounter = 0;
+        m_OSecondColumnCounter = 0;
+        m_XZeroRowCounter = 0;
+        m_XZeroColumnCounter = 0;
+        m_XFirstRowCounter = 0;
+        m_XFirstColumnCounter = 0;
+        m_XSecondRowCounter = 0;
+        m_XSecondColumnCounter = 0;
+        m_XLeftDiagonalCounter = 0;
+        m_XRightDiagonalCounter = 0;
+        m_OLeftDiagonalCounter = 0;
+        m_ORightDiagonalCounter = 0;
+}
+    public void ResetGame()
+    {
+        ResetPositionStatus();
+        ResetCounters();
+        ResetFilledProperty();
+        SetWhiteTexture();
+        m_GameCurrentSignStatus = 0;
+        m_PlayerCurrentScore = 0;
+        m_PlayerCurrentScoreText.text = "0";
+        m_BotCurrentScore = 0;
+        m_BotCurrentScoreText.text = "0";
+        m_TurnStatus.text = "Player Turn"; 
+        m_WinStatus.gameObject.SetActive(false);
+        m_NextGame.gameObject.SetActive(false);
+        CurrentTurnState = TurnState.PLAYERTURN;
+        IsGameOver = false;
+        m_PlayerTurn = true;
+    }
+
+    public void ShowPanel()
+    {
+        m_Panel.gameObject.SetActive(true);
+    }
+
+    public void ClosePanel()
+    {
+        m_Panel.gameObject.SetActive(false);
+    }
+   // void ToogleTurn()
+    //{
+      //  m_PlayerTurn = !m_PlayerTurn;
+        //ToogleCurrentStatus();
+    //}
 
  
 
